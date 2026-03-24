@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 DEFAULT_CONFIG = {
-    "hotkey": "ctrl+alt+space",
+    "hotkey": "windows+space",
     "language": "auto",       # "auto", "ru" (Russian), "he" (Hebrew)
     "model": "base",          # whisper model: tiny, base, small, medium, large
     "sample_rate": 16000,

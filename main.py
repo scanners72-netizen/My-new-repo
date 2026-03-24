@@ -5,7 +5,7 @@ Runs as a Windows system-tray application.
 Usage:
     python main.py
 
-Hotkey (default Ctrl+Alt+Space):
+Hotkey (default Windows+Space):
   - First press  → starts recording
   - Second press → stops recording, transcribes, pastes text at cursor
 """

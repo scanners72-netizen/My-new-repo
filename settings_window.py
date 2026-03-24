@@ -45,7 +45,7 @@ class SettingsWindow:
         tk.Label(root, text="Горячая клавиша / מקש קיצור:").grid(
             row=0, column=0, sticky="w", **pad
         )
-        hotkey_var = tk.StringVar(value=self._config.get("hotkey", "ctrl+alt+space"))
+        hotkey_var = tk.StringVar(value=self._config.get("hotkey", "windows+space"))
         hotkey_entry = tk.Entry(root, textvariable=hotkey_var, width=24)
         hotkey_entry.grid(row=0, column=1, sticky="ew", **pad)
 

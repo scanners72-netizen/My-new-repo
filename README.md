@@ -9,14 +9,14 @@ Windows application for voice text input **in Russian and Hebrew** in any text f
 ## Как это работает / How it works
 
 1. Приложение работает в **системном трее** (значок в углу панели задач).
-2. Нажмите **горячую клавишу** (по умолчанию `Ctrl+Alt+Space`) в любом месте — в браузере, Word, мессенджере, поле поиска — не важно.
+2. Нажмите **горячую клавишу** (по умолчанию `Windows+Space`) в любом месте — в браузере, Word, мессенджере, поле поиска — не важно.
 3. Скажите что хотите напечатать.
 4. Нажмите горячую клавишу снова — текст автоматически вставится в активное поле.
 
 ---
 
 1. The app lives in the **system tray** (taskbar corner icon).
-2. Press the **hotkey** (default `Ctrl+Alt+Space`) anywhere — browser, Word, messenger, search box — doesn't matter.
+2. Press the **hotkey** (default `Windows+Space`) anywhere — browser, Word, messenger, search box — doesn't matter.
 3. Say what you want to type.
 4. Press the hotkey again — the text is automatically pasted into the active field.
 
@@ -89,7 +89,7 @@ python main.py
 
 | Параметр | По умолчанию | Описание |
 |----------|-------------|----------|
-| Горячая клавиша | `ctrl+alt+space` | Например: `ctrl+shift+r`, `f9` |
+| Горячая клавиша | `windows+space` | Например: `ctrl+shift+r`, `f9` |
 | Язык | Авто | Авто, Русский, עברית |
 | Модель | `base` | tiny (быстро) / base / small / medium / large (качество) |
 | Макс. длина записи | 30 сек | Запись остановится автоматически |
