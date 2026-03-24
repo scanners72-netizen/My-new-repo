@@ -1,7 +1,7 @@
 @echo off
 REM ============================================================
 REM  Voice Input App — Setup Script
-REM  Installs all Python dependencies including OpenAI Whisper.
+REM  Installs all Python dependencies including faster-whisper.
 REM  Run once before first use.
 REM ============================================================
 
@@ -29,7 +29,7 @@ pip install -r requirements.txt
 
 echo.
 echo [3/3] Загрузка модели Whisper 'base' / Downloading Whisper 'base' model...
-python -c "import whisper; whisper.load_model('base'); print('Model ready.')"
+python -c "from faster_whisper import WhisperModel; WhisperModel('base', device='cpu', compute_type='int8'); print('Model ready.')"
 
 echo.
 echo ============================================================
