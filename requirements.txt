@@ -1,0 +1,23 @@
+# Voice Input App — Python dependencies
+# Install with: pip install -r requirements.txt
+
+# Audio recording
+sounddevice>=0.4.6
+numpy>=1.24
+
+# Speech recognition (OpenAI Whisper — runs locally, no API key)
+openai-whisper>=20231117
+
+# Text injection
+pyperclip>=1.8
+pyautogui>=0.9.54
+
+# Global hotkey listener
+keyboard>=0.13.5
+
+# System tray icon
+pystray>=0.19
+Pillow>=10.0
+
+# Optional: better resampling quality
+# scipy>=1.11
