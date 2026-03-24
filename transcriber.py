@@ -1,34 +1,36 @@
 """
-Speech-to-text transcription using OpenAI Whisper (runs locally, no API key needed).
+Speech-to-text transcription using faster-whisper (runs locally, no API key needed).
 Supports Russian (ru) and Hebrew (he) with auto-detection.
+faster-whisper is 2-4x faster than openai-whisper on CPU via int8 quantization.
 """
 import numpy as np
 from typing import Callable
 
-_whisper = None  # lazy-loaded
+_faster_whisper = None  # lazy-loaded
 
 
-def _get_whisper():
-    global _whisper
-    if _whisper is None:
+def _get_faster_whisper():
+    global _faster_whisper
+    if _faster_whisper is None:
         try:
-            import whisper
-            _whisper = whisper
+            import faster_whisper
+            _faster_whisper = faster_whisper
         except ImportError:
             raise RuntimeError(
-                "openai-whisper is not installed.\n"
-                "Run: pip install openai-whisper"
+                "faster-whisper is not installed.\n"
+                "Run: pip install faster-whisper"
             )
-    return _whisper
+    return _faster_whisper
 
 
 class Transcriber:
     """
-    Wraps OpenAI Whisper for speech-to-text.
+    Wraps faster-whisper for speech-to-text.
 
     Languages supported: auto-detect, Russian ('ru'), Hebrew ('he').
     Models (quality vs speed): tiny < base < small < medium < large
     Recommended: 'base' for speed, 'small' for better accuracy.
+    Uses int8 quantization for maximum CPU performance.
     """
 
     def __init__(self, model_name: str = "base", language: str = "auto"):
@@ -48,9 +50,13 @@ class Transcriber:
         """Load the Whisper model into memory (call once at startup)."""
         if self._model is not None:
             return
-        whisper = _get_whisper()
+        fw = _get_faster_whisper()
         self._status(f"Загрузка модели Whisper '{self.model_name}'...")
-        self._model = whisper.load_model(self.model_name)
+        self._model = fw.WhisperModel(
+            self.model_name,
+            device="cpu",
+            compute_type="int8",  # fastest on CPU
+        )
         self._status("Модель загружена.")
 
     def transcribe(self, audio: np.ndarray, sample_rate: int = 16000) -> str:
@@ -64,7 +70,7 @@ class Transcriber:
         if audio is None or len(audio) == 0:
             return ""
 
-        # Whisper expects float32 audio at 16kHz
+        # faster-whisper expects float32 audio at 16kHz
         if sample_rate != 16000:
             audio = _resample(audio, sample_rate, 16000)
 
@@ -73,19 +79,17 @@ class Transcriber:
         if max_val > 0:
             audio = audio / max_val
 
-        whisper = _get_whisper()
-
-        options: dict = {
-            "fp16": False,
-            "task": "transcribe",
-        }
-
-        if self.language != "auto":
-            options["language"] = self.language
+        lang = None if self.language == "auto" else self.language
 
         self._status("Распознавание речи...")
-        result = self._model.transcribe(audio, **options)
-        text: str = result.get("text", "").strip()
+        segments, _ = self._model.transcribe(
+            audio,
+            language=lang,
+            task="transcribe",
+            beam_size=5,
+            vad_filter=True,  # skip silence automatically
+        )
+        text = " ".join(seg.text for seg in segments).strip()
         self._status("Готово.")
         return text
 
