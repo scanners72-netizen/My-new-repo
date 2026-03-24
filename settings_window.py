@@ -13,11 +13,11 @@ LANGUAGES = {
 }
 
 MODELS = {
-    "tiny  (быстро / מהיר)": "tiny",
-    "base  (рекомендуется / מומלץ)": "base",
-    "small (лучше / טוב יותר)": "small",
-    "medium (высокое качество / איכות גבוהה)": "medium",
-    "large  (наилучшее / הכי טוב)": "large",
+    "tiny   — 75 МБ  (очень быстро)": "tiny",
+    "base   — 145 МБ (рекомендуется / מומלץ)": "base",
+    "small  — 466 МБ (лучше / טוב יותר)": "small",
+    "medium — 1.5 ГБ (высокое качество)": "medium",
+    "large  — 3 ГБ   (наилучшее / הכי טוב)": "large-v3",
 }
 
 
@@ -64,7 +64,7 @@ class SettingsWindow:
         tk.Label(root, text="Модель / מודל:").grid(row=2, column=0, sticky="w", **pad)
         model_display = {v: k for k, v in MODELS.items()}
         model_var = tk.StringVar(
-            value=model_display.get(self._config.get("model", "base"), "base  (рекомендуется / מומלץ)")
+            value=model_display.get(self._config.get("model", "base"), "base   — 145 МБ (рекомендуется / מומלץ)")
         )
         model_combo = ttk.Combobox(
             root, textvariable=model_var, values=list(MODELS.keys()), state="readonly", width=30
