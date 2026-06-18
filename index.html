@@ -21,6 +21,7 @@
     </header>
 
     <button id="installBtn" class="install-btn hidden">📲 Скачать на телефон</button>
+    <div id="installStatus" class="install-status hidden"></div>
 
     <div id="installHelp" class="ios-help hidden">
       <div id="installHelpText"></div>
@@ -34,7 +35,10 @@
 
     <main class="converter">
       <div class="row">
-        <input type="number" id="amount" value="100" min="0" step="any" inputmode="decimal">
+        <div class="amount-wrap">
+          <input type="number" id="amount" value="100" min="0" step="any" inputmode="decimal">
+          <button id="clearAmount" class="clear-amount" title="Очистить" aria-label="Очистить">×</button>
+        </div>
         <select id="from"></select>
       </div>
 

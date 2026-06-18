@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "2.7";
+const APP_VERSION = "2.8";
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };   // курсы относительно EUR (1 EUR = rates[code])
@@ -55,8 +55,18 @@ function fmt(value, code) {
   });
 }
 
+// ---- Сохранение выбора пользователя ----
+function savePrefs() {
+  try {
+    localStorage.setItem("from", fromSel.value);
+    localStorage.setItem("to", toSel.value);
+    localStorage.setItem("amount", amountEl.value);
+  } catch (e) {}
+}
+
 // ---- Пересчёт основного блока ----
 function update() {
+  savePrefs();
   const amount = parseFloat(amountEl.value);
   const from = fromSel.value;
   const to = toSel.value;
@@ -223,6 +233,12 @@ function bind() {
   $("refresh").addEventListener("click", loadRates);
   $("addBtn").addEventListener("click", addWatch);
 
+  $("clearAmount").addEventListener("click", () => {
+    amountEl.value = "";
+    update();
+    amountEl.focus();
+  });
+
   document.querySelectorAll(".src-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".src-btn").forEach((b) => b.classList.remove("active"));
@@ -246,8 +262,15 @@ function setupInstall() {
   if (standalone) return;
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const status = $("installStatus");
   let deferredPrompt = null;
   let wantsInstall = false; // пользователь нажал кнопку до готовности окна
+  let promptFired = false;
+
+  function setStat(text) {
+    status.textContent = text;
+    status.classList.remove("hidden");
+  }
 
   async function triggerInstall() {
     if (!deferredPrompt) return false;
@@ -262,12 +285,23 @@ function setupInstall() {
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;
+    promptFired = true;
     btn.textContent = "📲 Установить приложение";
+    setStat("✅ Установка доступна — нажмите кнопку");
     if (wantsInstall) { wantsInstall = false; triggerInstall(); }
   });
 
   // Кнопку показываем всегда, пока приложение не установлено.
   btn.classList.remove("hidden");
+  if (!isIOS) {
+    setStat("⏳ Проверяю возможность установки…");
+    // Диагностика: если за 8 c браузер не предложил установку — сообщаем.
+    setTimeout(() => {
+      if (!promptFired && !deferredPrompt) {
+        setStat("ⓘ Браузер пока не предлагает установку. Введите сумму и подождите пару секунд.");
+      }
+    }, 8000);
+  }
 
   btn.addEventListener("click", async () => {
     if (await triggerInstall()) return;
@@ -299,6 +333,7 @@ function setupInstall() {
     deferredPrompt = null;
     btn.classList.add("hidden");
     help.classList.add("hidden");
+    status.classList.add("hidden");
   });
 }
 
@@ -318,9 +353,16 @@ if ("serviceWorker" in navigator) {
 // ---- Инициализация ----
 $("ver").textContent = "Версия " + APP_VERSION;
 setupInstall();
-fillSelect(fromSel, "EUR");
-fillSelect(toSel, "ILS");
+
+// Восстанавливаем последний выбор пользователя (валюты и сумму).
+const savedFrom = localStorage.getItem("from") || "EUR";
+const savedTo = localStorage.getItem("to") || "ILS";
+const savedAmount = localStorage.getItem("amount");
+fillSelect(fromSel, CURRENCIES.some((c) => c.code === savedFrom) ? savedFrom : "EUR");
+fillSelect(toSel, CURRENCIES.some((c) => c.code === savedTo) ? savedTo : "ILS");
 fillSelect($("addCur"), "JPY");
+if (savedAmount !== null) amountEl.value = savedAmount;
+
 bind();
 renderWatch();
 loadRates();
