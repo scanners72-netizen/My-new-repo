@@ -180,6 +180,13 @@ function bind() {
   });
 }
 
+// ---- Регистрация service worker (офлайн-режим) ----
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+
 // ---- Инициализация ----
 fillSelect(fromSel, "EUR");
 fillSelect(toSel, "ILS");
