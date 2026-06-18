@@ -43,14 +43,14 @@
           <input type="number" id="amount" value="100" min="0" step="any" inputmode="decimal">
           <button id="clearAmount" class="clear-amount" aria-label="Очистить">×</button>
         </div>
-        <select id="from"></select>
+        <button type="button" class="cur-pick" id="fromBtn"></button>
       </div>
 
       <button id="swap" title="Поменять местами" aria-label="Поменять валюты">⇅</button>
 
       <div class="row">
         <input type="text" id="result" value="" readonly inputmode="decimal">
-        <select id="to"></select>
+        <button type="button" class="cur-pick" id="toBtn"></button>
       </div>
 
       <div class="rate-line" id="rateLine">—</div>
@@ -59,10 +59,7 @@
     <section class="watch">
       <div class="watch-head">
         <h2 id="myCurTitle">Мои валюты</h2>
-      </div>
-      <div class="watch-add">
-        <input type="text" id="curSearch" placeholder="Поиск валюты…" autocomplete="off">
-        <div id="curResults" class="cur-results hidden"></div>
+        <button type="button" id="addCurBtn" class="add-cur-btn">＋ Добавить валюту</button>
       </div>
       <div class="quick" id="quick"></div>
     </section>
@@ -78,6 +75,17 @@
         <br><span id="ver" class="ver"></span>
       </p>
     </footer>
+  </div>
+
+  <!-- Окно выбора/поиска валюты -->
+  <div id="picker" class="picker hidden">
+    <div class="picker-box">
+      <div class="picker-head">
+        <input type="text" id="pickerSearch" placeholder="Поиск валюты…" autocomplete="off">
+        <button type="button" id="pickerClose" class="picker-close" aria-label="✕">✕</button>
+      </div>
+      <div id="pickerList" class="picker-list"></div>
+    </div>
   </div>
 
   <script src="i18n.js"></script>

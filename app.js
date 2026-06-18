@@ -1,17 +1,18 @@
 "use strict";
 
-const APP_VERSION = "4.0";
+const APP_VERSION = "4.1";
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };
 let source = "ecb";
 let watch = loadWatch();
+let fromCur = "EUR";
+let toCur = "ILS";
 let installAvailable = false;
+let pickerMode = null; // "from" | "to" | "add"
 const last = { statusKey: "statusLoading", statusCls: "", updatedDate: null, isFallback: false };
 
 const $ = (id) => document.getElementById(id);
-const fromSel = $("from");
-const toSel = $("to");
 const amountEl = $("amount");
 const resultEl = $("result");
 
@@ -26,7 +27,7 @@ function nameOf(code) {
   }
 }
 
-// ---- Список наблюдаемых валют (localStorage) ----
+// ---- Список «Мои валюты» (localStorage) ----
 function loadWatch() {
   try {
     const saved = JSON.parse(localStorage.getItem("watchList"));
@@ -37,16 +38,17 @@ function loadWatch() {
 function saveWatch() {
   try { localStorage.setItem("watchList", JSON.stringify(watch)); } catch (e) {}
 }
-
-// ---- Выпадающие списки ----
-function fillSelect(sel, selected) {
-  sel.innerHTML = "";
-  for (const code of CURRENCY_CODES) {
-    const opt = document.createElement("option");
-    opt.value = code;
-    opt.textContent = `${codeToFlag(code)} ${code} — ${nameOf(code)}`;
-    if (code === selected) opt.selected = true;
-    sel.appendChild(opt);
+function toggleFav(code) {
+  if (watch.includes(code)) watch = watch.filter((c) => c !== code);
+  else watch.push(code);
+  saveWatch();
+  renderWatch();
+}
+function addWatch(code) {
+  if (code && !watch.includes(code)) {
+    watch.push(code);
+    saveWatch();
+    renderWatch();
   }
 }
 
@@ -62,11 +64,17 @@ function fmt(value, code) {
   });
 }
 
+// ---- Кнопки выбора валюты (флаг + код) ----
+function updateCurButtons() {
+  $("fromBtn").textContent = `${codeToFlag(fromCur)} ${fromCur}`;
+  $("toBtn").textContent = `${codeToFlag(toCur)} ${toCur}`;
+}
+
 // ---- Сохранение выбора ----
 function savePrefs() {
   try {
-    localStorage.setItem("from", fromSel.value);
-    localStorage.setItem("to", toSel.value);
+    localStorage.setItem("from", fromCur);
+    localStorage.setItem("to", toCur);
     localStorage.setItem("amount", amountEl.value);
   } catch (e) {}
 }
@@ -75,8 +83,6 @@ function savePrefs() {
 function update() {
   savePrefs();
   const amount = parseFloat(amountEl.value);
-  const from = fromSel.value;
-  const to = toSel.value;
 
   if (isNaN(amount)) {
     resultEl.value = "";
@@ -85,13 +91,13 @@ function update() {
     return;
   }
 
-  const res = convert(amount, from, to);
+  const res = convert(amount, fromCur, toCur);
   if (res === null) {
     resultEl.value = "—";
     $("rateLine").textContent = t("rateUnavailable");
   } else {
-    resultEl.value = fmt(res, to);
-    $("rateLine").textContent = `1 ${from} = ${fmt(convert(1, from, to), to)} ${to}`;
+    resultEl.value = fmt(res, toCur);
+    $("rateLine").textContent = `1 ${fromCur} = ${fmt(convert(1, fromCur, toCur), toCur)} ${toCur}`;
   }
   renderWatch();
 }
@@ -99,12 +105,11 @@ function update() {
 // ---- Мои валюты ----
 function renderWatch() {
   const amount = parseFloat(amountEl.value);
-  const from = fromSel.value;
   const box = $("quick");
   box.innerHTML = "";
 
   for (const code of watch) {
-    const v = isNaN(amount) ? convert(1, from, code) : convert(amount, from, code);
+    const v = isNaN(amount) ? convert(1, fromCur, code) : convert(amount, fromCur, code);
     if (v === null) continue;
     const card = document.createElement("div");
     card.className = "qcard";
@@ -123,48 +128,69 @@ function renderWatch() {
   });
 }
 
-function addWatch(code) {
-  if (code && !watch.includes(code)) {
-    watch.push(code);
-    saveWatch();
-    renderWatch();
-  }
+// ---- Окно выбора/поиска валюты ----
+function openPicker(mode) {
+  pickerMode = mode;
+  $("pickerSearch").value = "";
+  renderPicker("");
+  $("picker").classList.remove("hidden");
+  setTimeout(() => $("pickerSearch").focus(), 60);
 }
-
-// ---- Поиск валют ----
-function searchCurrencies(query) {
-  const box = $("curResults");
+function closePicker() {
+  $("picker").classList.add("hidden");
+  pickerMode = null;
+}
+function renderPicker(query) {
   const q = query.trim().toLowerCase();
-  box.innerHTML = "";
-  if (!q) {
-    box.classList.add("hidden");
-    return;
-  }
-  const matches = CURRENCY_CODES.filter(
-    (code) => code.toLowerCase().includes(q) || nameOf(code).toLowerCase().includes(q)
-  ).slice(0, 30);
+  const list = $("pickerList");
+  list.innerHTML = "";
+  const codes = (!q
+    ? CURRENCY_CODES
+    : CURRENCY_CODES.filter((c) => c.toLowerCase().includes(q) || nameOf(c).toLowerCase().includes(q))
+  ).slice(0, 80);
 
-  if (!matches.length) {
+  if (!codes.length) {
     const d = document.createElement("div");
     d.className = "cur-empty";
     d.textContent = t("noResults");
-    box.appendChild(d);
-  } else {
-    for (const code of matches) {
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "cur-row";
-      row.innerHTML =
-        `<span>${codeToFlag(code)} <b>${code}</b> — ${nameOf(code)}</span>` +
-        `<span class="cur-mark">${watch.includes(code) ? "✓" : "＋"}</span>`;
-      row.addEventListener("click", () => {
-        addWatch(code);
-        searchCurrencies($("curSearch").value);
-      });
-      box.appendChild(row);
-    }
+    list.appendChild(d);
+    return;
   }
-  box.classList.remove("hidden");
+
+  for (const code of codes) {
+    const fav = watch.includes(code);
+    const row = document.createElement("div");
+    row.className = "pick-row";
+    row.innerHTML =
+      `<button class="pick-main" type="button">
+         <span class="pick-code">${codeToFlag(code)} ${code}</span>
+         <span class="pick-name">${nameOf(code)}</span>
+       </button>
+       <button class="pick-star ${fav ? "on" : ""}" type="button" aria-label="★">${fav ? "★" : "☆"}</button>`;
+    row.querySelector(".pick-main").addEventListener("click", () => choosePicker(code));
+    row.querySelector(".pick-star").addEventListener("click", () => {
+      toggleFav(code);
+      renderPicker($("pickerSearch").value);
+    });
+    list.appendChild(row);
+  }
+}
+function choosePicker(code) {
+  if (pickerMode === "from") {
+    fromCur = code;
+    updateCurButtons();
+    update();
+    closePicker();
+  } else if (pickerMode === "to") {
+    toCur = code;
+    updateCurButtons();
+    update();
+    closePicker();
+  } else {
+    // режим добавления — добавляем/убираем и остаёмся в окне
+    toggleFav(code);
+    renderPicker($("pickerSearch").value);
+  }
 }
 
 // ---- Загрузка курсов ----
@@ -208,9 +234,9 @@ async function loadBOI() {
 
 async function loadBOIDirect() {
   const data = await fetchJSON("https://boi.org.il/PublicApi/GetExchangeRates?asJson=true");
-  const list = data.exchangeRates || data.ExchangeRates || [];
+  const listArr = data.exchangeRates || data.ExchangeRates || [];
   const ils = { ILS: 1 };
-  for (const e of list) {
+  for (const e of listArr) {
     const code = (e.key || e.Key || "").toUpperCase();
     const rate = e.currentExchangeRate ?? e.CurrentExchangeRate;
     const unit = e.unit ?? e.Unit ?? 1;
@@ -278,7 +304,8 @@ function applyLang(lang) {
   document.querySelector('.src-btn[data-source="ecb"]').textContent = t("ecb");
   document.querySelector('.src-btn[data-source="boi"]').textContent = t("boi");
   $("myCurTitle").textContent = t("myCur");
-  $("curSearch").placeholder = t("search");
+  $("addCurBtn").textContent = t("addCurrency");
+  $("pickerSearch").placeholder = t("search");
   $("refresh").textContent = t("refresh");
   $("swap").title = t("swap");
   $("clearAmount").setAttribute("aria-label", t("clear"));
@@ -291,17 +318,14 @@ function applyLang(lang) {
     b.classList.toggle("active", b.dataset.lang === lang)
   );
 
-  // Перестроить списки и динамику на новом языке.
-  const f = fromSel.value, to = toSel.value;
-  fillSelect(fromSel, f);
-  fillSelect(toSel, to);
+  updateCurButtons();
   refreshStatus();
   refreshUpdated();
   update();
-  if ($("curSearch").value) searchCurrencies($("curSearch").value);
+  if (pickerMode) renderPicker($("pickerSearch").value);
 }
 
-// ---- Установка (без диагностики) ----
+// ---- Установка ----
 function setupInstall() {
   const btn = $("installBtn");
   const help = $("installHelp");
@@ -354,13 +378,22 @@ function setupInstall() {
 // ---- События ----
 function bind() {
   amountEl.addEventListener("input", update);
-  fromSel.addEventListener("change", update);
-  toSel.addEventListener("change", update);
+
+  $("fromBtn").addEventListener("click", () => openPicker("from"));
+  $("toBtn").addEventListener("click", () => openPicker("to"));
+  $("addCurBtn").addEventListener("click", () => openPicker("add"));
+
+  $("pickerClose").addEventListener("click", closePicker);
+  $("pickerSearch").addEventListener("input", (e) => renderPicker(e.target.value));
+  $("picker").addEventListener("click", (e) => {
+    if (e.target === $("picker")) closePicker(); // тап по затемнению закрывает
+  });
 
   $("swap").addEventListener("click", () => {
-    const a = fromSel.value;
-    fromSel.value = toSel.value;
-    toSel.value = a;
+    const a = fromCur;
+    fromCur = toCur;
+    toCur = a;
+    updateCurButtons();
     update();
   });
 
@@ -371,8 +404,6 @@ function bind() {
     update();
     amountEl.focus();
   });
-
-  $("curSearch").addEventListener("input", (e) => searchCurrencies(e.target.value));
 
   document.querySelectorAll(".lang-btn").forEach((btn) => {
     btn.addEventListener("click", () => applyLang(btn.dataset.lang));
@@ -401,8 +432,8 @@ setupInstall();
 const savedFrom = localStorage.getItem("from");
 const savedTo = localStorage.getItem("to");
 const savedAmount = localStorage.getItem("amount");
-fillSelect(fromSel, CURRENCY_CODES.includes(savedFrom) ? savedFrom : "EUR");
-fillSelect(toSel, CURRENCY_CODES.includes(savedTo) ? savedTo : "ILS");
+if (CURRENCY_CODES.includes(savedFrom)) fromCur = savedFrom;
+if (CURRENCY_CODES.includes(savedTo)) toCur = savedTo;
 if (savedAmount !== null) amountEl.value = savedAmount;
 
 bind();
