@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "2.6";
+const APP_VERSION = "2.7";
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };   // курсы относительно EUR (1 EUR = rates[code])
@@ -247,33 +247,48 @@ function setupInstall() {
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   let deferredPrompt = null;
+  let wantsInstall = false; // пользователь нажал кнопку до готовности окна
+
+  async function triggerInstall() {
+    if (!deferredPrompt) return false;
+    help.classList.add("hidden");
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    return true;
+  }
 
   // Android/Chrome: ловим системное событие установки (создаёт WebAPK без бейджа).
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;
+    btn.textContent = "📲 Установить приложение";
+    if (wantsInstall) { wantsInstall = false; triggerInstall(); }
   });
 
   // Кнопку показываем всегда, пока приложение не установлено.
   btn.classList.remove("hidden");
 
   btn.addEventListener("click", async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      return;
-    }
-    // Системного окна нет — показываем инструкцию под платформу.
-    helpText.innerHTML = isIOS
-      ? "<p>На iPhone (через Safari):</p><ol>" +
+    if (await triggerInstall()) return;
+
+    if (isIOS) {
+      helpText.innerHTML =
+        "<p>На iPhone (через Safari):</p><ol>" +
         "<li>Нажмите «Поделиться» <b>⬆️</b> внизу экрана</li>" +
         "<li>Выберите <b>«На экран «Домой»»</b></li>" +
-        "<li>Нажмите <b>«Добавить»</b></li></ol>"
-      : "<p>В Chrome на Android:</p><ol>" +
-        "<li>Откройте меню <b>«⋮»</b> вверху справа</li>" +
-        "<li>Выберите <b>«Установить приложение»</b> (или «Добавить на главный экран»)</li>" +
-        "</ol><p>Если такого пункта нет — приложение уже установлено.</p>";
+        "<li>Нажмите <b>«Добавить»</b></li></ol>";
+      help.classList.remove("hidden");
+      return;
+    }
+
+    // Chrome: окно установки ещё не готово — ждём его и откроем автоматически.
+    wantsInstall = true;
+    helpText.innerHTML =
+      "<p>Готовлю установку…</p>" +
+      "<p>Окно установки появится автоматически через 1–2 секунды. " +
+      "Если нет — введите любую сумму в конвертере (это «активирует» страницу) " +
+      "и нажмите кнопку ещё раз.</p>";
     help.classList.remove("hidden");
   });
 
