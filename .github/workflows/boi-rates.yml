@@ -3,6 +3,8 @@ name: Update Bank of Israel rates
 on:
   schedule:
     - cron: "0 6,15 * * *"   # дважды в сутки (UTC)
+  push:
+    branches: [main]         # фиксация курсов делается с [skip ci] — цикла нет
   workflow_dispatch:
 
 permissions:
