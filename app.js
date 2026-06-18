@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "2.4";
+const APP_VERSION = "2.5";
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };   // курсы относительно EUR (1 EUR = rates[code])
@@ -236,7 +236,8 @@ function bind() {
 // ---- Кнопка «Скачать на телефон» ----
 function setupInstall() {
   const btn = $("installBtn");
-  const iosHelp = $("iosHelp");
+  const help = $("installHelp");
+  const helpText = $("installHelpText");
 
   // Уже установлено (запущено как приложение) — кнопку не показываем.
   const standalone =
@@ -247,34 +248,42 @@ function setupInstall() {
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   let deferredPrompt = null;
 
-  // Android/Chrome: ловим системное событие установки.
+  // Android/Chrome: ловим системное событие установки (создаёт WebAPK без бейджа).
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    btn.classList.remove("hidden");
   });
 
-  // iOS не поддерживает авто-установку — показываем кнопку с инструкцией.
-  if (isIOS) btn.classList.remove("hidden");
+  // Кнопку показываем всегда, пока приложение не установлено.
+  btn.classList.remove("hidden");
 
   btn.addEventListener("click", async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       await deferredPrompt.userChoice;
       deferredPrompt = null;
-      btn.classList.add("hidden");
-    } else if (isIOS) {
-      iosHelp.classList.remove("hidden");
-      btn.classList.add("hidden");
+      return;
     }
+    // Системного окна нет — показываем инструкцию под платформу.
+    helpText.innerHTML = isIOS
+      ? "<p>На iPhone (через Safari):</p><ol>" +
+        "<li>Нажмите «Поделиться» <b>⬆️</b> внизу экрана</li>" +
+        "<li>Выберите <b>«На экран «Домой»»</b></li>" +
+        "<li>Нажмите <b>«Добавить»</b></li></ol>"
+      : "<p>В Chrome на Android:</p><ol>" +
+        "<li>Откройте меню <b>«⋮»</b> вверху справа</li>" +
+        "<li>Выберите <b>«Установить приложение»</b> (или «Добавить на главный экран»)</li>" +
+        "</ol><p>Если такого пункта нет — приложение уже установлено.</p>";
+    help.classList.remove("hidden");
   });
 
-  $("iosHelpClose").addEventListener("click", () => iosHelp.classList.add("hidden"));
+  $("helpClose").addEventListener("click", () => help.classList.add("hidden"));
 
   // После установки прячем кнопку.
   window.addEventListener("appinstalled", () => {
     deferredPrompt = null;
     btn.classList.add("hidden");
+    help.classList.add("hidden");
   });
 }
 

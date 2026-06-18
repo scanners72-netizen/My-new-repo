@@ -1,7 +1,7 @@
 // Service Worker — офлайн-режим конвертера.
 // Стратегия "сеть в приоритете": при наличии интернета всегда берём свежую
 // версию (и обновляем кэш), а кэш используем только когда сети нет.
-const CACHE = "currency-converter-v4";
+const CACHE = "currency-converter-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -44,9 +44,10 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Оболочка приложения: сеть в приоритете, кэш — резерв для офлайна.
+  // Оболочка приложения: всегда берём свежую версию из сети (минуя HTTP-кэш
+  // браузера и CDN), кэш используем только как резерв для офлайна.
   e.respondWith(
-    fetch(req)
+    fetch(req, { cache: "no-store" })
       .then((resp) => {
         const copy = resp.clone();
         caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
