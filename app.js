@@ -1,5 +1,7 @@
 "use strict";
 
+const APP_VERSION = "2.2";
+
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };   // курсы относительно EUR (1 EUR = rates[code])
 let source = "ecb";                // "ecb" | "boi"
@@ -233,12 +235,19 @@ function bind() {
 
 // ---- Регистрация service worker (офлайн-режим) ----
 if ("serviceWorker" in navigator) {
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloaded) return;
+    reloaded = true;
+    location.reload(); // подхватить свежую версию после обновления SW
+  });
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch(() => {});
   });
 }
 
 // ---- Инициализация ----
+$("ver").textContent = "Версия " + APP_VERSION;
 fillSelect(fromSel, "EUR");
 fillSelect(toSel, "ILS");
 fillSelect($("addCur"), "JPY");

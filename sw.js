@@ -1,5 +1,7 @@
 // Service Worker — офлайн-режим конвертера.
-const CACHE = "currency-converter-v2";
+// Стратегия "сеть в приоритете": при наличии интернета всегда берём свежую
+// версию (и обновляем кэш), а кэш используем только когда сети нет.
+const CACHE = "currency-converter-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -27,20 +29,29 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  const url = new URL(e.request.url);
+  const req = e.request;
+  if (req.method !== "GET") return;
 
-  // Запросы курсов к API — всегда из сети (свежие курсы), кэш не используем.
+  const url = new URL(req.url);
+
+  // Запросы курсов к API — всегда из сети, кэш не трогаем.
   if (
     url.hostname.includes("frankfurter") ||
     url.hostname.includes("boi.org.il") ||
     url.hostname.includes("er-api.com") ||
     url.pathname.includes("/api/")
   ) {
-    return; // пусть идёт в сеть; при сбое приложение само включит резервную таблицу
+    return;
   }
 
-  // Остальное (оболочка приложения) — сначала кэш, затем сеть.
+  // Оболочка приложения: сеть в приоритете, кэш — резерв для офлайна.
   e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request))
+    fetch(req)
+      .then((resp) => {
+        const copy = resp.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        return resp;
+      })
+      .catch(() => caches.match(req).then((c) => c || caches.match("./index.html")))
   );
 });
