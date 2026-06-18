@@ -47,6 +47,32 @@ h1 { font-size: 1.7rem; }
 }
 .install-btn:active { transform: scale(0.98); }
 
+.install-status {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: -8px 0 16px;
+}
+
+.amount-wrap { position: relative; flex: 1; min-width: 0; }
+.amount-wrap input { width: 100%; padding-right: 40px; }
+.clear-amount {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.clear-amount:active { background: #ef4444; color: #fff; }
+
 .ios-help {
   background: var(--card);
   border: 1px solid var(--border);
