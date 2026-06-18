@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "2.2";
+const APP_VERSION = "2.3";
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };   // курсы относительно EUR (1 EUR = rates[code])
