@@ -1,6 +1,20 @@
 "use strict";
 
-const APP_VERSION = "2.8";
+const APP_VERSION = "2.9";
+
+// Определение браузера (для подсказок по установке).
+function detectBrowser() {
+  const ua = navigator.userAgent;
+  if (navigator.brave) return "Brave";
+  if (/SamsungBrowser/i.test(ua)) return "Samsung Internet";
+  if (/YaBrowser/i.test(ua)) return "Яндекс.Браузер";
+  if (/OPR|Opera/i.test(ua)) return "Opera";
+  if (/EdgA|Edg/i.test(ua)) return "Edge";
+  if (/Firefox|FxiOS/i.test(ua)) return "Firefox";
+  if (/CriOS/i.test(ua)) return "Chrome (iOS)";
+  if (/Chrome/i.test(ua)) return "Chrome";
+  return "браузер не распознан";
+}
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };   // курсы относительно EUR (1 EUR = rates[code])
@@ -262,6 +276,8 @@ function setupInstall() {
   if (standalone) return;
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const browser = detectBrowser();
+  const isSamsung = browser === "Samsung Internet";
   const status = $("installStatus");
   let deferredPrompt = null;
   let wantsInstall = false; // пользователь нажал кнопку до готовности окна
@@ -294,11 +310,15 @@ function setupInstall() {
   // Кнопку показываем всегда, пока приложение не установлено.
   btn.classList.remove("hidden");
   if (!isIOS) {
-    setStat("⏳ Проверяю возможность установки…");
+    setStat(`⏳ Проверяю установку… (браузер: ${browser})`);
     // Диагностика: если за 8 c браузер не предложил установку — сообщаем.
     setTimeout(() => {
       if (!promptFired && !deferredPrompt) {
-        setStat("ⓘ Браузер пока не предлагает установку. Введите сумму и подождите пару секунд.");
+        setStat(
+          isSamsung
+            ? `ⓘ ${browser} не показывает кнопку установки. Откройте сайт в Google Chrome — там установка в один тап.`
+            : `ⓘ Браузер (${browser}) пока не предлагает установку. Введите сумму и подождите пару секунд.`
+        );
       }
     }, 8000);
   }
@@ -312,6 +332,20 @@ function setupInstall() {
         "<li>Нажмите «Поделиться» <b>⬆️</b> внизу экрана</li>" +
         "<li>Выберите <b>«На экран «Домой»»</b></li>" +
         "<li>Нажмите <b>«Добавить»</b></li></ol>";
+      help.classList.remove("hidden");
+      return;
+    }
+
+    if (isSamsung) {
+      helpText.innerHTML =
+        "<p>Вы используете <b>Samsung Internet</b>. Чтобы установить приложение " +
+        "<b>без значка браузера</b>, надёжнее всего открыть этот сайт в " +
+        "<b>Google Chrome</b>:</p><ol>" +
+        "<li>Установите Google Chrome из Play Маркета (если ещё нет)</li>" +
+        "<li>Откройте в Chrome адрес этого сайта</li>" +
+        "<li>Нажмите зелёную кнопку «Установить приложение»</li></ol>" +
+        "<p>Либо в Samsung Internet: меню <b>☰</b> внизу → <b>«Добавить страницу на»</b> → " +
+        "<b>«Главный экран»</b> (значок может быть с эмблемой браузера).</p>";
       help.classList.remove("hidden");
       return;
     }
