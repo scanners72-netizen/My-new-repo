@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "2.3";
+const APP_VERSION = "2.4";
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };   // курсы относительно EUR (1 EUR = rates[code])
@@ -233,6 +233,51 @@ function bind() {
   });
 }
 
+// ---- Кнопка «Скачать на телефон» ----
+function setupInstall() {
+  const btn = $("installBtn");
+  const iosHelp = $("iosHelp");
+
+  // Уже установлено (запущено как приложение) — кнопку не показываем.
+  const standalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+  if (standalone) return;
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  let deferredPrompt = null;
+
+  // Android/Chrome: ловим системное событие установки.
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    btn.classList.remove("hidden");
+  });
+
+  // iOS не поддерживает авто-установку — показываем кнопку с инструкцией.
+  if (isIOS) btn.classList.remove("hidden");
+
+  btn.addEventListener("click", async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      btn.classList.add("hidden");
+    } else if (isIOS) {
+      iosHelp.classList.remove("hidden");
+      btn.classList.add("hidden");
+    }
+  });
+
+  $("iosHelpClose").addEventListener("click", () => iosHelp.classList.add("hidden"));
+
+  // После установки прячем кнопку.
+  window.addEventListener("appinstalled", () => {
+    deferredPrompt = null;
+    btn.classList.add("hidden");
+  });
+}
+
 // ---- Регистрация service worker (офлайн-режим) ----
 if ("serviceWorker" in navigator) {
   let reloaded = false;
@@ -248,6 +293,7 @@ if ("serviceWorker" in navigator) {
 
 // ---- Инициализация ----
 $("ver").textContent = "Версия " + APP_VERSION;
+setupInstall();
 fillSelect(fromSel, "EUR");
 fillSelect(toSel, "ILS");
 fillSelect($("addCur"), "JPY");

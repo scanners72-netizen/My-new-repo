@@ -52,12 +52,10 @@ def make(S, fname):
         t = y / (S - 1)
         bg = lerp(top, bot, t)
         for x in range(S):
-            if not in_rounded(x, y, S, r):
-                px += bytes((0, 0, 0, 0))  # прозрачный
-            elif white_at(x, y):
+            if white_at(x, y):
                 px += bytes((255, 255, 255, 255))
             else:
-                px += bytes((*bg, 255))
+                px += bytes((*bg, 255))  # фон во весь квадрат (maskable)
 
     raw = bytes(px)
     def chunk(typ, data):
