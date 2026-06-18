@@ -5,8 +5,8 @@
 // GET /api/rates?source=boi  -> официальные курсы Банка Израиля
 // GET /api/rates?source=ecb  -> референсные курсы ЕЦБ (Frankfurter)
 
-export default async function handler(req, res) {
-  const source = (req.query.source || "ecb").toLowerCase();
+module.exports = async function handler(req, res) {
+  const source = ((req.query && req.query.source) || "ecb").toLowerCase();
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "s-maxage=1800, stale-while-revalidate=3600");
 
@@ -14,16 +14,16 @@ export default async function handler(req, res) {
     const data = source === "boi" ? await getBOI() : await getECB();
     res.status(200).json(data);
   } catch (err) {
-    res.status(502).json({ error: String(err && err.message || err) });
+    res.status(502).json({ error: String((err && err.message) || err) });
   }
-}
+};
 
 // ЕЦБ через Frankfurter (база EUR).
 async function getECB() {
   const r = await fetch("https://api.frankfurter.dev/v1/latest?base=EUR");
   if (!r.ok) throw new Error("ECB HTTP " + r.status);
   const d = await r.json();
-  return { source: "ecb", date: d.date, rates: { EUR: 1, ...d.rates } };
+  return { source: "ecb", date: d.date, rates: Object.assign({ EUR: 1 }, d.rates) };
 }
 
 // Банк Израиля: официальные представительные курсы валют к шекелю,
@@ -39,11 +39,11 @@ async function getBOI() {
   const ils = { ILS: 1 }; // шекелей за 1 единицу валюты
   for (const e of list) {
     const code = (e.key || e.Key || "").toUpperCase();
-    const rate = e.currentExchangeRate ?? e.CurrentExchangeRate;
-    const unit = e.unit ?? e.Unit ?? 1;
+    const rate = e.currentExchangeRate != null ? e.currentExchangeRate : e.CurrentExchangeRate;
+    const unit = (e.unit != null ? e.unit : e.Unit) || 1;
     if (code && rate) ils[code] = rate / unit;
   }
-  if (!ils.EUR) throw new Error("BOI: нет курса EUR");
+  if (!ils.EUR) throw new Error("BOI: no EUR rate");
 
   const eurInIls = ils.EUR;
   const rates = { EUR: 1, ILS: eurInIls };
@@ -52,4 +52,4 @@ async function getBOI() {
   }
   const date = (d.lastUpdate || d.LastUpdate || "").slice(0, 10);
   return { source: "boi", date, rates };
-}
+};
