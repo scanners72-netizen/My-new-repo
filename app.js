@@ -1,6 +1,46 @@
 "use strict";
 
-const APP_VERSION = "3.0";
+const APP_VERSION = "3.1";
+
+// Самодиагностика условий установки PWA (вывод списком).
+async function runDiagnostics(promptFired) {
+  const L = [];
+  L.push("HTTPS: " + (window.isSecureContext ? "✅" : "❌ нет"));
+  L.push("Адрес: " + location.href);
+
+  let sw = "❌ не поддерживается";
+  if ("serviceWorker" in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) sw = "❌ не зарегистрирован";
+      else if (navigator.serviceWorker.controller) sw = "✅ управляет страницей";
+      else sw = "⚠️ зарегистрирован, но не управляет (обновите ещё раз)";
+    } catch (e) {
+      sw = "❌ ошибка: " + e.message;
+    }
+  }
+  L.push("Service worker: " + sw);
+
+  try {
+    const r = await fetch("manifest.json", { cache: "no-store" });
+    L.push("Манифест: " + (r.ok ? "✅ " + r.status : "❌ " + r.status));
+  } catch (e) {
+    L.push("Манифест: ❌ " + e.message);
+  }
+
+  for (const ic of ["icon-192.png", "icon-512.png"]) {
+    try {
+      const r = await fetch(ic, { cache: "no-store" });
+      L.push(ic + ": " + (r.ok ? "✅" : "❌ " + r.status));
+    } catch (e) {
+      L.push(ic + ": ❌ " + e.message);
+    }
+  }
+
+  L.push("Окно установки: " + (promptFired ? "✅ предложено" : "❌ браузер не прислал"));
+  L.push("Браузер: " + detectBrowser());
+  return L.join("\n");
+}
 
 // Определение браузера (для подсказок по установке).
 function detectBrowser() {
@@ -311,14 +351,13 @@ function setupInstall() {
   btn.classList.remove("hidden");
   if (!isIOS) {
     setStat(`⏳ Проверяю установку… (браузер: ${browser})`);
-    // Диагностика: если за 8 c браузер не предложил установку — сообщаем.
-    setTimeout(() => {
+    // Диагностика: если за 8 c браузер не предложил установку — показываем отчёт.
+    setTimeout(async () => {
       if (!promptFired && !deferredPrompt) {
-        setStat(
-          isSamsung
-            ? `ⓘ ${browser} не показывает кнопку установки. Откройте сайт в Google Chrome — там установка в один тап.`
-            : `ⓘ Браузер (${browser}) пока не предлагает установку. Введите сумму и подождите пару секунд.`
-        );
+        setStat("ⓘ Браузер не предложил установку. Диагностика ниже 👇");
+        const diag = $("diag");
+        diag.textContent = await runDiagnostics(promptFired);
+        diag.classList.remove("hidden");
       }
     }, 8000);
   }
