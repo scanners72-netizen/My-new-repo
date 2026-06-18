@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "4.5";
+const APP_VERSION = "4.6";
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };
@@ -358,6 +358,20 @@ function applyLang(lang) {
   if (pickerMode) renderPicker($("pickerSearch").value);
 }
 
+// Запущено ли приложение в нативной обёртке (Capacitor) или как установленное.
+function isNativeApp() {
+  const C = window.Capacitor;
+  if (C) {
+    try { if (typeof C.isNativePlatform === "function" && C.isNativePlatform()) return true; } catch (e) {}
+    if (C.platform && C.platform !== "web") return true;
+    try { if (typeof C.getPlatform === "function" && C.getPlatform() !== "web") return true; } catch (e) {}
+  }
+  const proto = location.protocol;
+  if (proto === "capacitor:" || proto === "ionic:") return true;
+  if ((proto === "http:" || proto === "https:") && location.hostname === "localhost") return true;
+  return false;
+}
+
 // ---- Установка ----
 function setupInstall() {
   const btn = $("installBtn");
@@ -366,12 +380,8 @@ function setupInstall() {
 
   // Внутри установленного приложения (Capacitor) или уже добавленного на
   // экран PWA кнопка установки не нужна.
-  const C = window.Capacitor;
-  const isNative = !!C && (typeof C.isNativePlatform === "function"
-    ? C.isNativePlatform()
-    : C.platform && C.platform !== "web");
   const standalone =
-    isNative ||
+    isNativeApp() ||
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone === true;
   if (standalone) return;
