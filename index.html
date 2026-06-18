@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Конвертер валют — курсы Банка Израиля и ЕЦБ</title>
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Валюты">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>💱 Конвертер валют</h1>
+      <p class="subtitle">Точные курсы Банка Израиля (BOI) и Европейского центрального банка (ЕЦБ)</p>
+    </header>
+
+    <div class="source-switch">
+      <button class="src-btn active" data-source="ecb">🇪🇺 ЕЦБ / банки Европы</button>
+      <button class="src-btn" data-source="boi">🇮🇱 Банк Израиля</button>
+    </div>
+
+    <main class="converter">
+      <div class="row">
+        <input type="number" id="amount" value="100" min="0" step="any" inputmode="decimal">
+        <select id="from"></select>
+      </div>
+
+      <button id="swap" title="Поменять местами" aria-label="Поменять валюты">⇅</button>
+
+      <div class="row">
+        <input type="number" id="result" value="" readonly>
+        <select id="to"></select>
+      </div>
+
+      <div class="rate-line" id="rateLine">—</div>
+    </main>
+
+    <div class="quick" id="quick"></div>
+
+    <footer>
+      <div id="status" class="status">Загрузка курсов…</div>
+      <div class="meta">
+        <span id="updated"></span>
+        <button id="refresh">Обновить курсы</button>
+      </div>
+      <p class="disclaimer">
+        Курсы носят справочный характер. Источники: Банк Израиля (boi.org.il) и
+        Европейский центральный банк через Frankfurter API. При отсутствии сети
+        используется встроенная резервная таблица.
+      </p>
+    </footer>
+  </div>
+
+  <script src="rates.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
