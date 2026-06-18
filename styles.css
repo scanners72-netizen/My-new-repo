@@ -110,13 +110,44 @@ h1 { font-size: 1.7rem; }
   font-weight: 600;
 }
 
+.watch { margin: 16px 0; }
+.watch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.watch-head h2 { font-size: 1.05rem; color: var(--muted); font-weight: 600; }
+.watch-add { display: flex; gap: 6px; }
+.watch-add select {
+  max-width: 150px;
+  padding: 8px;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card2);
+  color: var(--text);
+}
+.watch-add button {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #04293f;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .quick {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   gap: 8px;
-  margin: 16px 0;
 }
 .qcard {
+  position: relative;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -127,6 +158,21 @@ h1 { font-size: 1.7rem; }
 }
 .qcode { color: var(--muted); font-size: 0.8rem; }
 .qval { font-size: 1.05rem; font-weight: 600; }
+.qdel {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  cursor: pointer;
+}
+.qdel:hover { background: #ef4444; color: #fff; }
 
 footer { margin-top: 8px; }
 .status {
