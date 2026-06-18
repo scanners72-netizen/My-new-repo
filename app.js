@@ -1,17 +1,28 @@
 "use strict";
 
 // ---- Состояние ----
-// rates: курсы относительно EUR (1 EUR = rates[code]).
-let rates = { ...FALLBACK_EUR };
-let source = "ecb";          // "ecb" | "boi"
-let lastUpdated = null;      // строка с датой курсов
-let isLive = false;          // загружены ли живые курсы
+let rates = { ...FALLBACK_EUR };   // курсы относительно EUR (1 EUR = rates[code])
+let source = "ecb";                // "ecb" | "boi"
+let lastUpdated = null;
+let watch = loadWatch();           // настраиваемый список валют (карточки)
 
 const $ = (id) => document.getElementById(id);
 const fromSel = $("from");
 const toSel = $("to");
 const amountEl = $("amount");
 const resultEl = $("result");
+
+// ---- Список наблюдаемых валют (localStorage) ----
+function loadWatch() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("watchList"));
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch (e) {}
+  return ["USD", "EUR", "ILS", "GBP", "CHF", "RUB"];
+}
+function saveWatch() {
+  try { localStorage.setItem("watchList", JSON.stringify(watch)); } catch (e) {}
+}
 
 // ---- Заполнение выпадающих списков ----
 function fillSelect(sel, selected) {
@@ -26,25 +37,23 @@ function fillSelect(sel, selected) {
 }
 
 function meta(code) {
-  return CURRENCIES.find((c) => c.code === code) || { dp: 2 };
+  return CURRENCIES.find((c) => c.code === code) || { dp: 2, flag: "", name: code };
 }
 
 // ---- Конвертация (через EUR как базу) ----
 function convert(amount, from, to) {
   if (!rates[from] || !rates[to]) return null;
-  const inEur = amount / rates[from];
-  return inEur * rates[to];
+  return (amount / rates[from]) * rates[to];
 }
 
 function fmt(value, code) {
-  const dp = meta(code).dp;
   return value.toLocaleString("ru-RU", {
-    minimumFractionDigits: dp,
-    maximumFractionDigits: dp,
+    minimumFractionDigits: meta(code).dp,
+    maximumFractionDigits: meta(code).dp,
   });
 }
 
-// ---- Пересчёт и отображение ----
+// ---- Пересчёт основного блока ----
 function update() {
   const amount = parseFloat(amountEl.value);
   const from = fromSel.value;
@@ -53,6 +62,7 @@ function update() {
   if (isNaN(amount)) {
     resultEl.value = "";
     $("rateLine").textContent = "—";
+    renderWatch();
     return;
   }
 
@@ -60,89 +70,129 @@ function update() {
   if (res === null) {
     resultEl.value = "—";
     $("rateLine").textContent = "Курс недоступен для выбранной валюты";
-    return;
+  } else {
+    resultEl.value = fmt(res, to);
+    $("rateLine").textContent = `1 ${from} = ${fmt(convert(1, from, to), to)} ${to}`;
   }
-  resultEl.value = fmt(res, to);
-
-  const one = convert(1, from, to);
-  $("rateLine").textContent = `1 ${from} = ${fmt(one, to)} ${to}`;
-
-  renderQuick(from);
+  renderWatch();
 }
 
-// ---- Быстрые курсы выбранной валюты к популярным ----
-function renderQuick(base) {
-  const popular = ["USD", "EUR", "ILS", "GBP", "CHF", "RUB"].filter((c) => c !== base);
+// ---- Настраиваемый список валют ----
+function renderWatch() {
+  const amount = parseFloat(amountEl.value);
+  const from = fromSel.value;
   const box = $("quick");
   box.innerHTML = "";
-  for (const code of popular) {
-    const v = convert(1, base, code);
+
+  for (const code of watch) {
+    const v = isNaN(amount) ? convert(1, from, code) : convert(amount, from, code);
     if (v === null) continue;
     const card = document.createElement("div");
     card.className = "qcard";
-    card.innerHTML = `<span class="qcode">${meta(code).flag} ${code}</span>
-                      <span class="qval">${fmt(v, code)}</span>`;
+    card.innerHTML =
+      `<button class="qdel" title="Убрать" data-code="${code}">×</button>
+       <span class="qcode">${meta(code).flag} ${code}</span>
+       <span class="qval">${fmt(v, code)}</span>`;
     box.appendChild(card);
+  }
+
+  box.querySelectorAll(".qdel").forEach((b) => {
+    b.addEventListener("click", () => {
+      watch = watch.filter((c) => c !== b.dataset.code);
+      saveWatch();
+      renderWatch();
+    });
+  });
+}
+
+function addWatch() {
+  const code = $("addCur").value;
+  if (code && !watch.includes(code)) {
+    watch.push(code);
+    saveWatch();
+    renderWatch();
   }
 }
 
-// ---- Загрузка курсов ЕЦБ через Frankfurter (CORS разрешён) ----
-async function loadECB() {
-  const codes = CURRENCIES.map((c) => c.code).filter((c) => c !== "EUR");
-  const url = `https://api.frankfurter.app/latest?from=EUR&to=${codes.join(",")}`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error("ECB HTTP " + r.status);
-  const data = await r.json();
-  const next = { EUR: 1 };
-  for (const [k, v] of Object.entries(data.rates)) next[k] = v;
-  return { rates: next, date: data.date };
+// ---- Загрузка курсов ----
+async function fetchJSON(url) {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(url + " HTTP " + r.status);
+  return r.json();
 }
 
-// ---- Загрузка официальных курсов Банка Израиля ----
-// API BOI отдаёт курсы валют к шекелю (ILS). Пересчитываем в базу EUR.
-async function loadBOI() {
-  const r = await fetch("https://boi.org.il/PublicApi/GetExchangeRates?asJson=true");
-  if (!r.ok) throw new Error("BOI HTTP " + r.status);
-  const data = await r.json();
-  const list = data.exchangeRates || data.ExchangeRates || [];
+// Универсальный источник: open.er-api.com — все распространённые валюты, CORS.
+async function loadUniversal() {
+  const d = await fetchJSON("https://open.er-api.com/v6/latest/EUR");
+  const next = { EUR: 1 };
+  for (const [k, v] of Object.entries(d.rates || {})) next[k] = v;
+  return { rates: next, date: (d.time_last_update_utc || "").slice(0, 16) };
+}
 
-  // ils[CODE] = сколько шекелей за 1 единицу валюты
-  const ils = { ILS: 1 };
+// ЕЦБ: референсные курсы евро (Frankfurter) поверх универсальных,
+// чтобы по европейским валютам были точные данные ЕЦБ.
+async function loadECB() {
+  const [uni, fr] = await Promise.allSettled([
+    loadUniversal(),
+    fetchJSON("https://api.frankfurter.dev/v1/latest?base=EUR"),
+  ]);
+  let next = { EUR: 1 };
+  let date = "";
+  if (uni.status === "fulfilled") { Object.assign(next, uni.value.rates); date = uni.value.date; }
+  if (fr.status === "fulfilled") { Object.assign(next, fr.value.rates); date = fr.value.date || date; }
+  if (uni.status !== "fulfilled" && fr.status !== "fulfilled") throw new Error("ЕЦБ недоступен");
+  return { rates: next, date, official: true };
+}
+
+// Банк Израиля: официальные курсы.
+async function loadBOI() {
+  // 1) Серверная функция (работает на Vercel, обходит CORS) — официальные курсы.
+  try {
+    const d = await fetchJSON("api/rates?source=boi");
+    if (d && d.rates && d.rates.ILS) return { rates: d.rates, date: d.date, official: true };
+  } catch (e) {}
+  // 2) Прямой запрос к API BOI (если CORS разрешён).
+  try {
+    return await loadBOIDirect();
+  } catch (e) {}
+  // 3) Резерв: рыночные курсы (не официальные).
+  const uni = await loadUniversal();
+  return { rates: uni.rates, date: uni.date, official: false };
+}
+
+async function loadBOIDirect() {
+  const data = await fetchJSON("https://boi.org.il/PublicApi/GetExchangeRates?asJson=true");
+  const list = data.exchangeRates || data.ExchangeRates || [];
+  const ils = { ILS: 1 }; // шекелей за 1 единицу валюты
   for (const e of list) {
     const code = (e.key || e.Key || "").toUpperCase();
     const rate = e.currentExchangeRate ?? e.CurrentExchangeRate;
     const unit = e.unit ?? e.Unit ?? 1;
-    if (code && rate) ils[code] = rate / unit; // шекелей за 1 единицу
+    if (code && rate) ils[code] = rate / unit;
   }
   if (!ils.EUR) throw new Error("BOI: нет курса EUR");
-
-  // База EUR: rates[code] = единиц валюты за 1 EUR
-  const eurInIls = ils.EUR; // шекелей за 1 EUR
-  const next = {};
-  for (const c of CURRENCIES) {
-    const code = c.code;
-    if (ils[code]) next[code] = eurInIls / ils[code];
-  }
-  next.EUR = 1;
-  next.ILS = eurInIls;
-  const date = (data.lastUpdate || data.LastUpdate || "").slice(0, 10);
-  return { rates: next, date };
+  const eurInIls = ils.EUR;
+  const next = { EUR: 1, ILS: eurInIls };
+  for (const c of CURRENCIES) if (ils[c.code]) next[c.code] = eurInIls / ils[c.code];
+  return { rates: next, date: (data.lastUpdate || data.LastUpdate || "").slice(0, 10), official: true };
 }
 
 async function loadRates() {
   setStatus("Загрузка курсов…", "");
   try {
     const out = source === "boi" ? await loadBOI() : await loadECB();
-    // Сохраняем резервные значения для валют, которых нет в источнике.
     rates = { ...FALLBACK_EUR, ...out.rates };
     lastUpdated = out.date;
-    isLive = true;
-    const label = source === "boi" ? "Банк Израиля" : "ЕЦБ";
-    setStatus(`✅ Актуальные курсы: ${label}`, "ok");
+
+    if (source === "boi" && out.official === false) {
+      setStatus("⚠️ Рыночные курсы (официальный курс Банка Израиля — после деплоя на Vercel)", "warn");
+    } else {
+      const label = source === "boi" ? "Банк Израиля" : "ЕЦБ / банки Европы";
+      setStatus(`✅ Актуальные курсы: ${label}`, "ok");
+    }
     $("updated").textContent = lastUpdated ? `Курсы на ${lastUpdated}` : "";
   } catch (err) {
     rates = { ...FALLBACK_EUR };
-    isLive = false;
     setStatus("⚠️ Нет связи с источником — показаны резервные курсы", "warn");
     $("updated").textContent = "Резервная таблица";
   }
@@ -169,6 +219,7 @@ function bind() {
   });
 
   $("refresh").addEventListener("click", loadRates);
+  $("addBtn").addEventListener("click", addWatch);
 
   document.querySelectorAll(".src-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -190,5 +241,7 @@ if ("serviceWorker" in navigator) {
 // ---- Инициализация ----
 fillSelect(fromSel, "EUR");
 fillSelect(toSel, "ILS");
+fillSelect($("addCur"), "JPY");
 bind();
+renderWatch();
 loadRates();

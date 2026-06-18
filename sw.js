@@ -1,5 +1,5 @@
 // Service Worker — офлайн-режим конвертера.
-const CACHE = "currency-converter-v1";
+const CACHE = "currency-converter-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -30,7 +30,12 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
 
   // Запросы курсов к API — всегда из сети (свежие курсы), кэш не используем.
-  if (url.hostname.includes("frankfurter.app") || url.hostname.includes("boi.org.il")) {
+  if (
+    url.hostname.includes("frankfurter") ||
+    url.hostname.includes("boi.org.il") ||
+    url.hostname.includes("er-api.com") ||
+    url.pathname.includes("/api/")
+  ) {
     return; // пусть идёт в сеть; при сбое приложение само включит резервную таблицу
   }
 
