@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "4.4";
+const APP_VERSION = "4.5";
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };
@@ -364,7 +364,14 @@ function setupInstall() {
   const help = $("installHelp");
   const helpText = $("installHelpText");
 
+  // Внутри установленного приложения (Capacitor) или уже добавленного на
+  // экран PWA кнопка установки не нужна.
+  const C = window.Capacitor;
+  const isNative = !!C && (typeof C.isNativePlatform === "function"
+    ? C.isNativePlatform()
+    : C.platform && C.platform !== "web");
   const standalone =
+    isNative ||
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone === true;
   if (standalone) return;
