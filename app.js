@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "4.3";
+const APP_VERSION = "4.4";
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };
@@ -220,13 +220,24 @@ async function loadECB() {
   return { rates: next, date, official: true };
 }
 
+// Тот же файл на GitHub Pages — для нативного приложения (там нет
+// относительного пути к сайту, но CapacitorHttp обходит CORS).
+const BOI_REMOTE = "https://scanners72-netizen.github.io/My-new-repo/boi-rates.json";
+
 async function loadBOI() {
   let official = null;
-  // 1. Готовый файл с официальными курсами (обновляется автозадачей GitHub).
+  // 1. Готовый файл с официальными курсами (на сайте — относительный путь).
   try {
     const d = await fetchJSON("boi-rates.json");
     if (d && d.rates && d.rates.ILS) official = { rates: d.rates, date: d.date };
   } catch (e) {}
+  // 1b. Тот же файл по абсолютному адресу (для нативного приложения).
+  if (!official) {
+    try {
+      const d = await fetchJSON(BOI_REMOTE);
+      if (d && d.rates && d.rates.ILS) official = { rates: d.rates, date: d.date };
+    } catch (e) {}
+  }
   // 2. Серверная функция (если размещено на сервере с поддержкой /api).
   if (!official) {
     try {

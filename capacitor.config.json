@@ -1,0 +1,8 @@
+{
+  "appId": "com.scanners72.currency",
+  "appName": "Конвертер валют",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}
