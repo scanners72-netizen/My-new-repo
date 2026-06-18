@@ -3,9 +3,17 @@
 // ограничения CORS. Логирует структуру ответа для отладки.
 const fs = require("fs");
 
+const HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  Accept: "application/json, text/plain, */*",
+  "Accept-Language": "en,he;q=0.9",
+};
+
 async function main() {
   const url = "https://boi.org.il/PublicApi/GetExchangeRates?asJson=true";
-  const r = await fetch(url, { headers: { Accept: "application/json" } });
+  const r = await fetch(url, { headers: HEADERS });
   if (!r.ok) throw new Error("BOI HTTP " + r.status);
   const d = await r.json();
 
