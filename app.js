@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "2.9";
+const APP_VERSION = "3.0";
 
 // Определение браузера (для подсказок по установке).
 function detectBrowser() {
@@ -372,13 +372,10 @@ function setupInstall() {
 }
 
 // ---- Регистрация service worker (офлайн-режим) ----
+// Без авто-перезагрузки: при стратегии "сеть в приоритете" свежие файлы и так
+// грузятся при каждом открытии, а лишний reload мешал Chrome показать окно
+// установки приложения.
 if ("serviceWorker" in navigator) {
-  let reloaded = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (reloaded) return;
-    reloaded = true;
-    location.reload(); // подхватить свежую версию после обновления SW
-  });
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch(() => {});
   });
