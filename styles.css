@@ -53,6 +53,19 @@ h1 { font-size: 1.7rem; }
   color: var(--muted);
   margin: -8px 0 16px;
 }
+.diag {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 0 0 16px;
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, monospace;
+}
 
 .amount-wrap { position: relative; flex: 1; min-width: 0; }
 .amount-wrap input { width: 100%; padding-right: 40px; }
