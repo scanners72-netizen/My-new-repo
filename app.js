@@ -1,72 +1,30 @@
 "use strict";
 
-const APP_VERSION = "3.1";
-
-// Самодиагностика условий установки PWA (вывод списком).
-async function runDiagnostics(promptFired) {
-  const L = [];
-  L.push("HTTPS: " + (window.isSecureContext ? "✅" : "❌ нет"));
-  L.push("Адрес: " + location.href);
-
-  let sw = "❌ не поддерживается";
-  if ("serviceWorker" in navigator) {
-    try {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (!reg) sw = "❌ не зарегистрирован";
-      else if (navigator.serviceWorker.controller) sw = "✅ управляет страницей";
-      else sw = "⚠️ зарегистрирован, но не управляет (обновите ещё раз)";
-    } catch (e) {
-      sw = "❌ ошибка: " + e.message;
-    }
-  }
-  L.push("Service worker: " + sw);
-
-  try {
-    const r = await fetch("manifest.json", { cache: "no-store" });
-    L.push("Манифест: " + (r.ok ? "✅ " + r.status : "❌ " + r.status));
-  } catch (e) {
-    L.push("Манифест: ❌ " + e.message);
-  }
-
-  for (const ic of ["icon-192.png", "icon-512.png"]) {
-    try {
-      const r = await fetch(ic, { cache: "no-store" });
-      L.push(ic + ": " + (r.ok ? "✅" : "❌ " + r.status));
-    } catch (e) {
-      L.push(ic + ": ❌ " + e.message);
-    }
-  }
-
-  L.push("Окно установки: " + (promptFired ? "✅ предложено" : "❌ браузер не прислал"));
-  L.push("Браузер: " + detectBrowser());
-  return L.join("\n");
-}
-
-// Определение браузера (для подсказок по установке).
-function detectBrowser() {
-  const ua = navigator.userAgent;
-  if (navigator.brave) return "Brave";
-  if (/SamsungBrowser/i.test(ua)) return "Samsung Internet";
-  if (/YaBrowser/i.test(ua)) return "Яндекс.Браузер";
-  if (/OPR|Opera/i.test(ua)) return "Opera";
-  if (/EdgA|Edg/i.test(ua)) return "Edge";
-  if (/Firefox|FxiOS/i.test(ua)) return "Firefox";
-  if (/CriOS/i.test(ua)) return "Chrome (iOS)";
-  if (/Chrome/i.test(ua)) return "Chrome";
-  return "браузер не распознан";
-}
+const APP_VERSION = "4.0";
 
 // ---- Состояние ----
-let rates = { ...FALLBACK_EUR };   // курсы относительно EUR (1 EUR = rates[code])
-let source = "ecb";                // "ecb" | "boi"
-let lastUpdated = null;
-let watch = loadWatch();           // настраиваемый список валют (карточки)
+let rates = { ...FALLBACK_EUR };
+let source = "ecb";
+let watch = loadWatch();
+let installAvailable = false;
+const last = { statusKey: "statusLoading", statusCls: "", updatedDate: null, isFallback: false };
 
 const $ = (id) => document.getElementById(id);
 const fromSel = $("from");
 const toSel = $("to");
 const amountEl = $("amount");
 const resultEl = $("result");
+
+// ---- Названия валют на текущем языке ----
+const _dn = {};
+function nameOf(code) {
+  try {
+    if (!_dn[currentLang]) _dn[currentLang] = new Intl.DisplayNames([currentLang], { type: "currency" });
+    return _dn[currentLang].of(code) || code;
+  } catch (e) {
+    return code;
+  }
+}
 
 // ---- Список наблюдаемых валют (localStorage) ----
 function loadWatch() {
@@ -80,36 +38,31 @@ function saveWatch() {
   try { localStorage.setItem("watchList", JSON.stringify(watch)); } catch (e) {}
 }
 
-// ---- Заполнение выпадающих списков ----
+// ---- Выпадающие списки ----
 function fillSelect(sel, selected) {
   sel.innerHTML = "";
-  for (const c of CURRENCIES) {
+  for (const code of CURRENCY_CODES) {
     const opt = document.createElement("option");
-    opt.value = c.code;
-    opt.textContent = `${c.flag} ${c.code} — ${c.name}`;
-    if (c.code === selected) opt.selected = true;
+    opt.value = code;
+    opt.textContent = `${codeToFlag(code)} ${code} — ${nameOf(code)}`;
+    if (code === selected) opt.selected = true;
     sel.appendChild(opt);
   }
 }
 
-function meta(code) {
-  return CURRENCIES.find((c) => c.code === code) || { dp: 2, flag: "", name: code };
-}
-
-// ---- Конвертация (через EUR как базу) ----
+// ---- Конвертация ----
 function convert(amount, from, to) {
   if (!rates[from] || !rates[to]) return null;
   return (amount / rates[from]) * rates[to];
 }
-
 function fmt(value, code) {
-  return value.toLocaleString("ru-RU", {
-    minimumFractionDigits: meta(code).dp,
-    maximumFractionDigits: meta(code).dp,
+  return value.toLocaleString(currentLang, {
+    minimumFractionDigits: dpOf(code),
+    maximumFractionDigits: dpOf(code),
   });
 }
 
-// ---- Сохранение выбора пользователя ----
+// ---- Сохранение выбора ----
 function savePrefs() {
   try {
     localStorage.setItem("from", fromSel.value);
@@ -118,7 +71,7 @@ function savePrefs() {
   } catch (e) {}
 }
 
-// ---- Пересчёт основного блока ----
+// ---- Пересчёт ----
 function update() {
   savePrefs();
   const amount = parseFloat(amountEl.value);
@@ -135,7 +88,7 @@ function update() {
   const res = convert(amount, from, to);
   if (res === null) {
     resultEl.value = "—";
-    $("rateLine").textContent = "Курс недоступен для выбранной валюты";
+    $("rateLine").textContent = t("rateUnavailable");
   } else {
     resultEl.value = fmt(res, to);
     $("rateLine").textContent = `1 ${from} = ${fmt(convert(1, from, to), to)} ${to}`;
@@ -143,7 +96,7 @@ function update() {
   renderWatch();
 }
 
-// ---- Настраиваемый список валют ----
+// ---- Мои валюты ----
 function renderWatch() {
   const amount = parseFloat(amountEl.value);
   const from = fromSel.value;
@@ -156,12 +109,11 @@ function renderWatch() {
     const card = document.createElement("div");
     card.className = "qcard";
     card.innerHTML =
-      `<button class="qdel" title="Убрать" data-code="${code}">×</button>
-       <span class="qcode">${meta(code).flag} ${code}</span>
+      `<button class="qdel" data-code="${code}" aria-label="×">×</button>
+       <span class="qcode">${codeToFlag(code)} ${code}</span>
        <span class="qval">${fmt(v, code)}</span>`;
     box.appendChild(card);
   }
-
   box.querySelectorAll(".qdel").forEach((b) => {
     b.addEventListener("click", () => {
       watch = watch.filter((c) => c !== b.dataset.code);
@@ -171,13 +123,48 @@ function renderWatch() {
   });
 }
 
-function addWatch() {
-  const code = $("addCur").value;
+function addWatch(code) {
   if (code && !watch.includes(code)) {
     watch.push(code);
     saveWatch();
     renderWatch();
   }
+}
+
+// ---- Поиск валют ----
+function searchCurrencies(query) {
+  const box = $("curResults");
+  const q = query.trim().toLowerCase();
+  box.innerHTML = "";
+  if (!q) {
+    box.classList.add("hidden");
+    return;
+  }
+  const matches = CURRENCY_CODES.filter(
+    (code) => code.toLowerCase().includes(q) || nameOf(code).toLowerCase().includes(q)
+  ).slice(0, 30);
+
+  if (!matches.length) {
+    const d = document.createElement("div");
+    d.className = "cur-empty";
+    d.textContent = t("noResults");
+    box.appendChild(d);
+  } else {
+    for (const code of matches) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "cur-row";
+      row.innerHTML =
+        `<span>${codeToFlag(code)} <b>${code}</b> — ${nameOf(code)}</span>` +
+        `<span class="cur-mark">${watch.includes(code) ? "✓" : "＋"}</span>`;
+      row.addEventListener("click", () => {
+        addWatch(code);
+        searchCurrencies($("curSearch").value);
+      });
+      box.appendChild(row);
+    }
+  }
+  box.classList.remove("hidden");
 }
 
 // ---- Загрузка курсов ----
@@ -187,7 +174,6 @@ async function fetchJSON(url) {
   return r.json();
 }
 
-// Универсальный источник: open.er-api.com — все распространённые валюты, CORS.
 async function loadUniversal() {
   const d = await fetchJSON("https://open.er-api.com/v6/latest/EUR");
   const next = { EUR: 1 };
@@ -195,8 +181,6 @@ async function loadUniversal() {
   return { rates: next, date: (d.time_last_update_utc || "").slice(0, 16) };
 }
 
-// ЕЦБ: референсные курсы евро (Frankfurter) поверх универсальных,
-// чтобы по европейским валютам были точные данные ЕЦБ.
 async function loadECB() {
   const [uni, fr] = await Promise.allSettled([
     loadUniversal(),
@@ -206,22 +190,18 @@ async function loadECB() {
   let date = "";
   if (uni.status === "fulfilled") { Object.assign(next, uni.value.rates); date = uni.value.date; }
   if (fr.status === "fulfilled") { Object.assign(next, fr.value.rates); date = fr.value.date || date; }
-  if (uni.status !== "fulfilled" && fr.status !== "fulfilled") throw new Error("ЕЦБ недоступен");
+  if (uni.status !== "fulfilled" && fr.status !== "fulfilled") throw new Error("ECB unavailable");
   return { rates: next, date, official: true };
 }
 
-// Банк Израиля: официальные курсы.
 async function loadBOI() {
-  // 1) Серверная функция (работает на Vercel, обходит CORS) — официальные курсы.
   try {
     const d = await fetchJSON("api/rates?source=boi");
     if (d && d.rates && d.rates.ILS) return { rates: d.rates, date: d.date, official: true };
   } catch (e) {}
-  // 2) Прямой запрос к API BOI (если CORS разрешён).
   try {
     return await loadBOIDirect();
   } catch (e) {}
-  // 3) Резерв: рыночные курсы (не официальные).
   const uni = await loadUniversal();
   return { rates: uni.rates, date: uni.date, official: false };
 }
@@ -229,46 +209,146 @@ async function loadBOI() {
 async function loadBOIDirect() {
   const data = await fetchJSON("https://boi.org.il/PublicApi/GetExchangeRates?asJson=true");
   const list = data.exchangeRates || data.ExchangeRates || [];
-  const ils = { ILS: 1 }; // шекелей за 1 единицу валюты
+  const ils = { ILS: 1 };
   for (const e of list) {
     const code = (e.key || e.Key || "").toUpperCase();
     const rate = e.currentExchangeRate ?? e.CurrentExchangeRate;
     const unit = e.unit ?? e.Unit ?? 1;
     if (code && rate) ils[code] = rate / unit;
   }
-  if (!ils.EUR) throw new Error("BOI: нет курса EUR");
+  if (!ils.EUR) throw new Error("BOI: no EUR");
   const eurInIls = ils.EUR;
   const next = { EUR: 1, ILS: eurInIls };
-  for (const c of CURRENCIES) if (ils[c.code]) next[c.code] = eurInIls / ils[c.code];
+  for (const code of Object.keys(ils)) {
+    if (code !== "ILS" && ils[code]) next[code] = eurInIls / ils[code];
+  }
   return { rates: next, date: (data.lastUpdate || data.LastUpdate || "").slice(0, 10), official: true };
 }
 
 async function loadRates() {
-  setStatus("Загрузка курсов…", "");
+  last.statusKey = "statusLoading";
+  last.statusCls = "";
+  refreshStatus();
   try {
     const out = source === "boi" ? await loadBOI() : await loadECB();
     rates = { ...FALLBACK_EUR, ...out.rates };
-    lastUpdated = out.date;
-
+    last.updatedDate = out.date || null;
+    last.isFallback = false;
     if (source === "boi" && out.official === false) {
-      setStatus("⚠️ Рыночные курсы (официальный курс Банка Израиля — после деплоя на Vercel)", "warn");
+      last.statusKey = "statusMarket";
+      last.statusCls = "warn";
     } else {
-      const label = source === "boi" ? "Банк Израиля" : "ЕЦБ / банки Европы";
-      setStatus(`✅ Актуальные курсы: ${label}`, "ok");
+      last.statusKey = source === "boi" ? "statusOkBoi" : "statusOkEcb";
+      last.statusCls = "ok";
     }
-    $("updated").textContent = lastUpdated ? `Курсы на ${lastUpdated}` : "";
   } catch (err) {
     rates = { ...FALLBACK_EUR };
-    setStatus("⚠️ Нет связи с источником — показаны резервные курсы", "warn");
-    $("updated").textContent = "Резервная таблица";
+    last.updatedDate = null;
+    last.isFallback = true;
+    last.statusKey = "statusOffline";
+    last.statusCls = "warn";
   }
+  refreshStatus();
+  refreshUpdated();
   update();
 }
 
-function setStatus(text, cls) {
+function setStatus(key, cls) {
   const el = $("status");
-  el.textContent = text;
+  el.textContent = t(key);
   el.className = "status " + cls;
+}
+function refreshStatus() { setStatus(last.statusKey, last.statusCls); }
+function refreshUpdated() {
+  $("updated").textContent = last.isFallback
+    ? t("fallback")
+    : last.updatedDate ? t("ratesOn") + last.updatedDate : "";
+}
+
+// ---- Язык ----
+function applyLang(lang) {
+  if (!I18N[lang]) lang = "ru";
+  currentLang = lang;
+  try { localStorage.setItem("lang", lang); } catch (e) {}
+  document.documentElement.lang = lang;
+  document.documentElement.dir = I18N[lang].dir;
+
+  $("title").textContent = t("title");
+  $("subtitle").textContent = t("subtitle");
+  document.querySelector('.src-btn[data-source="ecb"]').textContent = t("ecb");
+  document.querySelector('.src-btn[data-source="boi"]').textContent = t("boi");
+  $("myCurTitle").textContent = t("myCur");
+  $("curSearch").placeholder = t("search");
+  $("refresh").textContent = t("refresh");
+  $("swap").title = t("swap");
+  $("clearAmount").setAttribute("aria-label", t("clear"));
+  $("helpClose").textContent = t("helpClose");
+  $("disclaimer").textContent = t("disclaimer");
+  $("ver").textContent = t("version") + " " + APP_VERSION;
+  $("installBtn").textContent = installAvailable ? t("install") : t("installShort");
+
+  document.querySelectorAll(".lang-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.lang === lang)
+  );
+
+  // Перестроить списки и динамику на новом языке.
+  const f = fromSel.value, to = toSel.value;
+  fillSelect(fromSel, f);
+  fillSelect(toSel, to);
+  refreshStatus();
+  refreshUpdated();
+  update();
+  if ($("curSearch").value) searchCurrencies($("curSearch").value);
+}
+
+// ---- Установка (без диагностики) ----
+function setupInstall() {
+  const btn = $("installBtn");
+  const help = $("installHelp");
+  const helpText = $("installHelpText");
+
+  const standalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+  if (standalone) return;
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  let deferred = null;
+  let wants = false;
+
+  async function doPrompt() {
+    if (!deferred) return false;
+    help.classList.add("hidden");
+    deferred.prompt();
+    await deferred.userChoice;
+    deferred = null;
+    installAvailable = false;
+    return true;
+  }
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferred = e;
+    installAvailable = true;
+    btn.textContent = t("install");
+    if (wants) { wants = false; doPrompt(); }
+  });
+
+  btn.classList.remove("hidden");
+  btn.addEventListener("click", async () => {
+    if (await doPrompt()) return;
+    helpText.innerHTML = isIOS ? t("iosHelp") : t("androidHelp");
+    if (!isIOS) wants = true;
+    help.classList.remove("hidden");
+  });
+
+  $("helpClose").addEventListener("click", () => help.classList.add("hidden"));
+  window.addEventListener("appinstalled", () => {
+    deferred = null;
+    installAvailable = false;
+    btn.classList.add("hidden");
+    help.classList.add("hidden");
+  });
 }
 
 // ---- События ----
@@ -285,12 +365,17 @@ function bind() {
   });
 
   $("refresh").addEventListener("click", loadRates);
-  $("addBtn").addEventListener("click", addWatch);
 
   $("clearAmount").addEventListener("click", () => {
     amountEl.value = "";
     update();
     amountEl.focus();
+  });
+
+  $("curSearch").addEventListener("input", (e) => searchCurrencies(e.target.value));
+
+  document.querySelectorAll(".lang-btn").forEach((btn) => {
+    btn.addEventListener("click", () => applyLang(btn.dataset.lang));
   });
 
   document.querySelectorAll(".src-btn").forEach((btn) => {
@@ -303,117 +388,7 @@ function bind() {
   });
 }
 
-// ---- Кнопка «Скачать на телефон» ----
-function setupInstall() {
-  const btn = $("installBtn");
-  const help = $("installHelp");
-  const helpText = $("installHelpText");
-
-  // Уже установлено (запущено как приложение) — кнопку не показываем.
-  const standalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone === true;
-  if (standalone) return;
-
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const browser = detectBrowser();
-  const isSamsung = browser === "Samsung Internet";
-  const status = $("installStatus");
-  let deferredPrompt = null;
-  let wantsInstall = false; // пользователь нажал кнопку до готовности окна
-  let promptFired = false;
-
-  function setStat(text) {
-    status.textContent = text;
-    status.classList.remove("hidden");
-  }
-
-  async function triggerInstall() {
-    if (!deferredPrompt) return false;
-    help.classList.add("hidden");
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    return true;
-  }
-
-  // Android/Chrome: ловим системное событие установки (создаёт WebAPK без бейджа).
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    promptFired = true;
-    btn.textContent = "📲 Установить приложение";
-    setStat("✅ Установка доступна — нажмите кнопку");
-    if (wantsInstall) { wantsInstall = false; triggerInstall(); }
-  });
-
-  // Кнопку показываем всегда, пока приложение не установлено.
-  btn.classList.remove("hidden");
-  if (!isIOS) {
-    setStat(`⏳ Проверяю установку… (браузер: ${browser})`);
-    // Диагностика: если за 8 c браузер не предложил установку — показываем отчёт.
-    setTimeout(async () => {
-      if (!promptFired && !deferredPrompt) {
-        setStat("ⓘ Браузер не предложил установку. Диагностика ниже 👇");
-        const diag = $("diag");
-        diag.textContent = await runDiagnostics(promptFired);
-        diag.classList.remove("hidden");
-      }
-    }, 8000);
-  }
-
-  btn.addEventListener("click", async () => {
-    if (await triggerInstall()) return;
-
-    if (isIOS) {
-      helpText.innerHTML =
-        "<p>На iPhone (через Safari):</p><ol>" +
-        "<li>Нажмите «Поделиться» <b>⬆️</b> внизу экрана</li>" +
-        "<li>Выберите <b>«На экран «Домой»»</b></li>" +
-        "<li>Нажмите <b>«Добавить»</b></li></ol>";
-      help.classList.remove("hidden");
-      return;
-    }
-
-    if (isSamsung) {
-      helpText.innerHTML =
-        "<p>Вы используете <b>Samsung Internet</b>. Чтобы установить приложение " +
-        "<b>без значка браузера</b>, надёжнее всего открыть этот сайт в " +
-        "<b>Google Chrome</b>:</p><ol>" +
-        "<li>Установите Google Chrome из Play Маркета (если ещё нет)</li>" +
-        "<li>Откройте в Chrome адрес этого сайта</li>" +
-        "<li>Нажмите зелёную кнопку «Установить приложение»</li></ol>" +
-        "<p>Либо в Samsung Internet: меню <b>☰</b> внизу → <b>«Добавить страницу на»</b> → " +
-        "<b>«Главный экран»</b> (значок может быть с эмблемой браузера).</p>";
-      help.classList.remove("hidden");
-      return;
-    }
-
-    // Chrome: окно установки ещё не готово — ждём его и откроем автоматически.
-    wantsInstall = true;
-    helpText.innerHTML =
-      "<p>Готовлю установку…</p>" +
-      "<p>Окно установки появится автоматически через 1–2 секунды. " +
-      "Если нет — введите любую сумму в конвертере (это «активирует» страницу) " +
-      "и нажмите кнопку ещё раз.</p>";
-    help.classList.remove("hidden");
-  });
-
-  $("helpClose").addEventListener("click", () => help.classList.add("hidden"));
-
-  // После установки прячем кнопку.
-  window.addEventListener("appinstalled", () => {
-    deferredPrompt = null;
-    btn.classList.add("hidden");
-    help.classList.add("hidden");
-    status.classList.add("hidden");
-  });
-}
-
-// ---- Регистрация service worker (офлайн-режим) ----
-// Без авто-перезагрузки: при стратегии "сеть в приоритете" свежие файлы и так
-// грузятся при каждом открытии, а лишний reload мешал Chrome показать окно
-// установки приложения.
+// ---- Service worker ----
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch(() => {});
@@ -421,18 +396,15 @@ if ("serviceWorker" in navigator) {
 }
 
 // ---- Инициализация ----
-$("ver").textContent = "Версия " + APP_VERSION;
 setupInstall();
 
-// Восстанавливаем последний выбор пользователя (валюты и сумму).
-const savedFrom = localStorage.getItem("from") || "EUR";
-const savedTo = localStorage.getItem("to") || "ILS";
+const savedFrom = localStorage.getItem("from");
+const savedTo = localStorage.getItem("to");
 const savedAmount = localStorage.getItem("amount");
-fillSelect(fromSel, CURRENCIES.some((c) => c.code === savedFrom) ? savedFrom : "EUR");
-fillSelect(toSel, CURRENCIES.some((c) => c.code === savedTo) ? savedTo : "ILS");
-fillSelect($("addCur"), "JPY");
+fillSelect(fromSel, CURRENCY_CODES.includes(savedFrom) ? savedFrom : "EUR");
+fillSelect(toSel, CURRENCY_CODES.includes(savedTo) ? savedTo : "ILS");
 if (savedAmount !== null) amountEl.value = savedAmount;
 
 bind();
-renderWatch();
+applyLang(currentLang);
 loadRates();

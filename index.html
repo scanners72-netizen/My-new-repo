@@ -16,13 +16,16 @@
 <body>
   <div class="app">
     <header>
-      <h1>💱 Конвертер валют</h1>
-      <p class="subtitle">Точные курсы Банка Израиля (BOI) и Европейского центрального банка (ЕЦБ)</p>
+      <div class="lang-switch">
+        <button class="lang-btn" data-lang="ru">RU</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="he">עב</button>
+      </div>
+      <h1 id="title">💱 Конвертер валют</h1>
+      <p class="subtitle" id="subtitle">Точные курсы Банка Израиля (BOI) и Европейского центрального банка (ЕЦБ)</p>
     </header>
 
     <button id="installBtn" class="install-btn hidden">📲 Скачать на телефон</button>
-    <div id="installStatus" class="install-status hidden"></div>
-    <pre id="diag" class="diag hidden"></pre>
 
     <div id="installHelp" class="ios-help hidden">
       <div id="installHelpText"></div>
@@ -38,7 +41,7 @@
       <div class="row">
         <div class="amount-wrap">
           <input type="number" id="amount" value="100" min="0" step="any" inputmode="decimal">
-          <button id="clearAmount" class="clear-amount" title="Очистить" aria-label="Очистить">×</button>
+          <button id="clearAmount" class="clear-amount" aria-label="Очистить">×</button>
         </div>
         <select id="from"></select>
       </div>
@@ -55,11 +58,11 @@
 
     <section class="watch">
       <div class="watch-head">
-        <h2>Мои валюты</h2>
-        <div class="watch-add">
-          <select id="addCur"></select>
-          <button id="addBtn">➕ Добавить</button>
-        </div>
+        <h2 id="myCurTitle">Мои валюты</h2>
+      </div>
+      <div class="watch-add">
+        <input type="text" id="curSearch" placeholder="Поиск валюты…" autocomplete="off">
+        <div id="curResults" class="cur-results hidden"></div>
       </div>
       <div class="quick" id="quick"></div>
     </section>
@@ -71,14 +74,13 @@
         <button id="refresh">Обновить курсы</button>
       </div>
       <p class="disclaimer">
-        Курсы носят справочный характер. Источники: Банк Израиля (boi.org.il) и
-        Европейский центральный банк. При отсутствии сети используется
-        встроенная резервная таблица.
+        <span id="disclaimer">Курсы носят справочный характер.</span>
         <br><span id="ver" class="ver"></span>
       </p>
     </footer>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="rates.js"></script>
   <script src="app.js"></script>
 </body>

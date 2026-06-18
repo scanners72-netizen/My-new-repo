@@ -1,11 +1,12 @@
 // Service Worker — офлайн-режим конвертера.
 // Стратегия "сеть в приоритете": при наличии интернета всегда берём свежую
 // версию (и обновляем кэш), а кэш используем только когда сети нет.
-const CACHE = "currency-converter-v11";
+const CACHE = "currency-converter-v12";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
+  "./i18n.js",
   "./rates.js",
   "./app.js",
   "./manifest.json",
