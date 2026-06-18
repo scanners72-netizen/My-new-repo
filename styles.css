@@ -53,34 +53,114 @@ h1 { font-size: 1.7rem; }
   border-color: var(--accent);
 }
 
-.cur-results {
-  margin-top: 8px;
+.cur-empty { padding: 16px; color: var(--muted); font-size: 0.9rem; text-align: center; }
+
+/* Кнопка выбора валюты в конверторе (флаг + код) */
+.cur-pick {
+  width: 42%;
+  padding: 14px 8px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card2);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cur-pick:active { border-color: var(--accent); }
+
+.add-cur-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #04293f;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Модальное окно выбора валюты */
+.picker {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+}
+.picker-box {
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.picker-head {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.picker-head input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+  font-size: 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card2);
+  color: var(--text);
+}
+.picker-close {
+  width: 44px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  overflow: hidden;
-  max-height: 280px;
-  overflow-y: auto;
-  background: var(--card);
+  background: var(--card2);
+  color: var(--text);
+  font-size: 1.1rem;
+  cursor: pointer;
 }
-.cur-row {
+.picker-list { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pick-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  border: none;
   border-bottom: 1px solid var(--border);
+}
+.pick-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: none;
   background: transparent;
   color: var(--text);
-  font-size: 0.9rem;
   text-align: start;
   cursor: pointer;
 }
-.cur-row:last-child { border-bottom: none; }
-.cur-row:active { background: var(--card2); }
-.cur-mark { color: var(--accent2); font-size: 1.1rem; }
-.cur-empty { padding: 12px; color: var(--muted); font-size: 0.9rem; text-align: center; }
+.pick-main:active { background: var(--card2); }
+.pick-code { font-size: 1rem; font-weight: 600; }
+.pick-name { font-size: 0.8rem; color: var(--muted); }
+.pick-star {
+  width: 52px;
+  align-self: stretch;
+  border: none;
+  border-inline-start: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+.pick-star.on { color: #fbbf24; }
 
 .install-btn {
   display: block;
