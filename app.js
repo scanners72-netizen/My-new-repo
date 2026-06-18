@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "4.2";
+const APP_VERSION = "4.3";
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };
@@ -221,21 +221,35 @@ async function loadECB() {
 }
 
 async function loadBOI() {
+  let official = null;
   // 1. Готовый файл с официальными курсами (обновляется автозадачей GitHub).
   try {
     const d = await fetchJSON("boi-rates.json");
-    if (d && d.rates && d.rates.ILS) return { rates: d.rates, date: d.date, official: true };
+    if (d && d.rates && d.rates.ILS) official = { rates: d.rates, date: d.date };
   } catch (e) {}
   // 2. Серверная функция (если размещено на сервере с поддержкой /api).
-  try {
-    const d = await fetchJSON("api/rates?source=boi");
-    if (d && d.rates && d.rates.ILS) return { rates: d.rates, date: d.date, official: true };
-  } catch (e) {}
+  if (!official) {
+    try {
+      const d = await fetchJSON("api/rates?source=boi");
+      if (d && d.rates && d.rates.ILS) official = { rates: d.rates, date: d.date };
+    } catch (e) {}
+  }
   // 3. Прямой запрос к API BOI (если CORS разрешён).
-  try {
-    return await loadBOIDirect();
-  } catch (e) {}
-  // 4. Резерв: рыночные курсы.
+  if (!official) {
+    try {
+      const d = await loadBOIDirect();
+      official = { rates: d.rates, date: d.date };
+    } catch (e) {}
+  }
+
+  if (official) {
+    // Валюты вне набора Банка Израиля заполняем живыми рыночными курсами.
+    let base = {};
+    try { base = (await loadUniversal()).rates; } catch (e) {}
+    return { rates: { ...base, ...official.rates }, date: official.date, official: true };
+  }
+
+  // 4. Резерв: рыночные курсы (официальные недоступны).
   const uni = await loadUniversal();
   return { rates: uni.rates, date: uni.date, official: false };
 }
