@@ -199,10 +199,10 @@ h1 { font-size: 1.7rem; }
 }
 
 .amount-wrap { position: relative; flex: 1; min-width: 0; }
-.amount-wrap input { width: 100%; padding-right: 40px; }
+.amount-wrap input { width: 100%; padding-inline-end: 40px; }
 .clear-amount {
   position: absolute;
-  right: 8px;
+  inset-inline-end: 8px;
   top: 50%;
   transform: translateY(-50%);
   width: 28px;
@@ -356,12 +356,12 @@ h1 { font-size: 1.7rem; }
   flex-direction: column;
   gap: 2px;
 }
-.qcode { color: var(--muted); font-size: 0.8rem; }
+.qcode { color: var(--muted); font-size: 0.8rem; padding-inline-end: 22px; }
 .qval { font-size: 1.05rem; font-weight: 600; }
 .qdel {
   position: absolute;
   top: 4px;
-  right: 4px;
+  inset-inline-end: 4px;
   width: 20px;
   height: 20px;
   line-height: 1;

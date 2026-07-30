@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "4.6";
+const APP_VERSION = "4.7";
 
 // ---- Состояние ----
 let rates = { ...FALLBACK_EUR };
